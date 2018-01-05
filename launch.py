@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 
-""" start up from cmdline  """
+""" start up """
 
-from scrapy import cmdline
+from WeiboSpider import WeiboSpider
+from commentid import COMMENT_ID as c_ids
+from bloggerid import BLOGGER_ID as b_ids
 
+def setUp():
+    """ 运行 """
 
-cmdline.execute("scrapy crawl weiboSpider".split())
+    for cid in c_ids:
+        WeiboSpider.process_comment(cid)
+
+if __name__ == '__main__':
+    setUp()
