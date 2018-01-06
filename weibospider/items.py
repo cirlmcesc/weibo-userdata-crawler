@@ -12,3 +12,16 @@ class WeibospiderItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
     pass
+
+class BloggerItem(scrapy.Item):
+    uid = scrapy.Field()
+    nickname = scrapy.Field()
+
+class InformationItem(scrapy.Item):
+    uid = scrapy.Field()
+    nickname = scrapy.Field()
+
+class CommentItem(scrapy.Item):
+    uid = scrapy.Field()
+    bloggerid = scrapy.Field()
+    comment_content = scrapy.Field()

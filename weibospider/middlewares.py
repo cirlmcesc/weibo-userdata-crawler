@@ -22,3 +22,10 @@ class UserAgentMiddleware(object):
 
         agent = random.choice(agents)
         request.headers["User-Agent"] = agent
+
+class CookiesMiddleware(object):
+    """ 维护登录cookie """
+
+    def proecss_request(self, request, spider):
+        """ process_request """
+        pass
