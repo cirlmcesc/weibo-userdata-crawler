@@ -23,6 +23,8 @@ class UserAgentMiddleware(object):
         agent = random.choice(agents)
         request.headers["User-Agent"] = agent
 
+        return request
+
 class CookiesMiddleware(object):
     """ 维护登录cookie """
 
