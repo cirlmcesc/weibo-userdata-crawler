@@ -1,105 +1,189 @@
-#This Python file uses the following encoding: utf-8
+# -*- coding: utf-8 -*-
 
-""" pedoo """
+""" mysqldb connect package MySQLConnect """
 
-import MySQLdb
+import time
+
+try:
+    import MySQLdb
+except ImportError:
+    import pymysql as MySQLdb
 
 
-class Pedoo:
-    """ mysqldb expansion pedoo """
+class MySQLConnect(object): 
+    """ MySQL connect"""
+    
+    sql_statement_log = []
+    last_execute_sql = ""
 
-    def __init__(self, mysql_config):
-        self.mysql = MySQLdb.connect(
-            host = mysql_config['host'],
-            user = mysql_config['user'],
-            passwd = mysql_config['passwd'],
-            db = mysql_config['db'],
-            charset = mysql_config['charset'])
+    def __init__(self, db_connect={}, db_config={}):
+        if len(db_connect) > 0:
+            self.db_connect = db_connect
+            self.db = db_connect.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        elif len(db_connect) == 0 and len(db_config) > 0:
+            MySQLConnect.getDBConnect(db_config)
 
-        self.db = self.mysql.cursor(cursorclass = MySQLdb.cursors.DictCursor)
-
-    def select(self, table, join = '', field = '*', where = {}, other = []):
-        self.db.execute(self.__selectString(
-            table = table, join = join, field = field,
-            where = where, other = other))
-
-        return self.db.fetchall()
-
-    def get(self, table, join = '', field = '*', where = {}, other = []):
-        self.db.execute(self.__selectString(
-            table = table, join = join, field = field,
-            where = where, other = other))
-
-        return self.db.fetchone()
-
-    def has(self, table, where):
-        res = self.get(table = table, field = '*', where = where)
-
-        return not res is None
-
-    def update(self, table, dictionary, where = {}):
-        sql = "UPDATE %s SET " % table
-
-        sql += self.__spliceWhereString(dictionary = dictionary)
-
-        sql += " WHERE %s " % self.__spliceWhereString(dictionary = where)
-
+    @classmethod
+    def getDBConnect(cls, db_config):
+        cls.db_connect = MySQLdb.connect(
+            host=db_config.get("host", ""), user=db_config.get("user", ""), 
+            passwd=db_config.get("password", ""), db=db_config.get("db", ""), 
+            charset=db_config.get("charset", ""))
+        cls.db = MySQLConnect.db_connect.cursor(
+            cursorclass=MySQLdb.cursors.DictCursor)
+        
+    def execute(self, sql=""):
         self.db.execute(sql)
+        self.sql_statement_log.insert(-1, {time.time(): sql})
+        self.last_execute_sql = sql
 
-        return self.mysql.commit()
+        return self.db.fetchall() if "SELECT" in sql else self.db_connect.commit()
 
-    def insert(self, table, dictionary):
-        keylist =  dictionary[0].keys() if isinstance(dictionary, list) else dictionary.keys()
-        sql = "INSERT INTO %s ( %s ) VALUES " % (table, ', '.join(keylist))
+    def log(self):
+        return self.sql_statement_log
 
-        if isinstance(dictionary, list):
-            values = []
 
-            for instance in dictionary:
-                temporary_list = []
+class QueryBuilder(object):
+    """ Query Builder """
 
-                for key in keylist:
-                    temporary_list.append("'%s'" % instance.get(key))
+    __ormmodel = ""
+    __table_name = ""
+    __fields = "*"
+    __join = []
+    __where = {
+        "and": [],
+        'or': [],
+    }
+    __order = []
+    __final_sql = ""
 
-                values.append(" (%s) " %  ', '.join(temporary_list))
+    def __init__(self, ormmodel, table_name):
+        self.__ormmodel = ormmodel
+        self.__table_name = ormmodel.table_name
 
-            sql += ', '.join(values)
-        else:
-            temporary_list = []
+    def select(self, *fields):
+        """ set select fields """
 
-            for key in keylist:
-                temporary_list.append("'%s'" % dictionary.get(key))
+        if len(fields) == 1:
+            self.__fields = fields[0]
+        elif len(fields) > 1:
+             self.__fields = ", ".join(fields)
+  
+        return self
 
-            sql += " (%s) " % ', '.join(temporary_list)
+    def __buildSelectString(self, join, where, order, limit):
+        sql = "SElECT %s FROM %s" % (self.__fields, self.__table_name)
 
-        self.db.execute(sql)
+        return sql + join + where + order + limit
 
-        return self.mysql.commit()
+    def join(self, table, current_table_field, judge, target_table_field):
+        pass
 
-    def delete(self, table, where = {}):
-        sql = "DELETE FROM %s " % table
+    def __buildJoinString(self):
+        return " " + "JOIN ".join(self.__join)
 
-        if len(where) > 0:
-            sql += "WHERE %s" % self.__spliceWhereString(dictionary = where)
+    def where(self, field, judge, value):
+        pass
 
-        self.db.execute(sql)
+    def between(self, from_condition, to_condition):
+        pass
 
-        return self.mysql.commit()
+    def orWhere(self, field, judge, value):
+        pass
 
-    def __selectString(self, table, join = '', field = '*', where = {}, other = []):
-        field = " %s " % field if isinstance(field, str) else " %s " % ', '.join(field)
-        where = "" if len(where) > 0 else self.__spliceWhereString(where)
-        other = "" if len(other) > 0 else ' '.join(other)
+    def like(self, field, cmp):
+        pass
 
-        return "SELECT %s FROM %s %s WHERE %s %s" % (field, table, join, where, other)
+    def __buildWhereString(self):
+        return ""
 
-    def __spliceWhereString(self, dictionary):
-        temporary_list = []
+    def limit(self, offset, number):
+        pass
 
-        for key in dictionary:
-            temporary_list.append(key + "='" + dictionary.get(key) + "'")
+    def __buildLimitString(self):
+        return ""
 
-        return ' AND '.join(temporary_list)
+    def orderBy(self, field, cmp):
+        pass
 
-    def close(self):
-        return self.mysql.close()
+    def __buildOrderString(self):
+        return ""
+
+    def get(self):
+        self.final_sql = self.__buildSelectString(self.__buildJoinString(),
+            self.__buildWhereString(), self.__buildOrderString(), self.__buildLimitString)
+
+        return ResaultBuilder.query(MySQLConnect(), self.__ormmodel, self)
+
+    def first(self):
+        return 
+    
+    def getSQL(self):
+        return self.__final_sql
+
+class ResaultBuilder(object):
+    """ Resault Builder """
+
+    @classmethod
+    def execute(cls, MySQLConnect, QueryBuilder):
+        """ execute """
+
+        return MySQLConnect.execute(QueryBuilder.getSQL())
+
+    @classmethod
+    def query(cls, MySQLConnect, ORMModel, QueryBuilder, few=True):
+        """ query """
+
+        resault = MySQLConnect.execute(QueryBuilder.getSQL())
+
+        if len(resault) == 0:
+            return [] if few else None
+
+        if few:
+            return list(map(lambda attributes: 
+                cls.buildORMModelInstance(ORMModel, attributes), resault))
+        else
+            return cls.buildORMModelInstance(ORMModel, resault[0])
+
+    @classmethod
+    def buildORMModelInstance(cls, ormmodel, attributes):
+        """ build model instance """
+
+        return ormmodel(attributes=attributes)
+
+
+class ORMModel():
+    """ Action Model """
+
+    table_name = ""
+    fields = []
+
+    def __init__(self, table_name="", attributes={}):
+        if self.table_name == "" and table_name == "":
+            self.table_name = self.__class__.__name__.lower()
+        elif table_name != "":
+            self.table_name = table_name
+        
+        if len(attributes) > 0:
+            for attribute in attributes:
+                self.__setattr__(self, attribute, attributes.get(attribute))
+
+    def __setattr__(self, attr, value):
+        fields = self.fields
+        fields.insert(-1, attr)
+        self.__dict__["fields"] = fields
+        self.__dict__[attr] = value
+
+    def __getattribute__(self, attr):
+        pass
+
+    @classmethod
+    def get(cls):
+        return QueryBuilder(cls, cls.table_name).get()
+
+    @classmethod
+    def first(cls):
+        return QueryBuilder(cls, cls.table_name).first()
+
+    def save(self):
+        pass
