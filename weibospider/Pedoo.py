@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-""" mysqldb connect package MySQLConnect """
+""" mysqldb connect package Pedoo """
 
+import functools
 import time
-
 try:
     import MySQLdb
 except ImportError:
@@ -43,7 +43,26 @@ class MySQLConnect(object):
         return self.sql_statement_log
 
 
-class QueryBuilder(object):
+class ActionDispatcher(object):
+    def CheckBaseClass(func):
+        def checkclass(cls, *args):
+            return func(cls, *args) if not ORMModel in cls.__bases__ else QueryBuilder(cls, *args)
+
+        return checkclass
+
+    @classmethod
+    @CheckBaseClass
+    def get(cls):
+        print(cls)
+        return cls
+
+    @classmethod
+    @CheckBaseClass
+    def where(cls, *args):
+        return cls
+
+
+class QueryBuilder(ActionDispatcher):
     """ Query Builder """
 
     __ormmodel = ""
@@ -71,10 +90,10 @@ class QueryBuilder(object):
   
         return self
 
-    def __buildSelectString(self, join, where, order, limit):
+    def buildSelectString(self):
         sql = "SElECT %s FROM %s" % (self.__fields, self.__table_name)
 
-        return sql + join + where + order + limit
+        return sql + self.__buildJoinString() + self.__buildWhereString() + self.__buildOrderString() + self.__buildLimitString
 
     def join(self, table, current_table_field, judge, target_table_field):
         pass
@@ -110,16 +129,11 @@ class QueryBuilder(object):
         return ""
 
     def get(self):
-        self.final_sql = self.__buildSelectString(self.__buildJoinString(),
-            self.__buildWhereString(), self.__buildOrderString(), self.__buildLimitString)
-
         return ResaultBuilder.query(MySQLConnect(), self.__ormmodel, self)
 
     def first(self):
-        return 
-    
-    def getSQL(self):
-        return self.__final_sql
+        return ResaultBuilder.query(MySQLConnect(), self.__ormmodel, self, few=False)
+
 
 class ResaultBuilder(object):
     """ Resault Builder """
@@ -134,15 +148,15 @@ class ResaultBuilder(object):
     def query(cls, MySQLConnect, ORMModel, QueryBuilder, few=True):
         """ query """
 
-        resault = MySQLConnect.execute(QueryBuilder.getSQL())
+        resault = MySQLConnect.execute(QueryBuilder.buildSelectString())
 
-        if len(resault) == 0:
+        if len(resault) == 0:                                                                                   
             return [] if few else None
 
         if few:
             return list(map(lambda attributes: 
                 cls.buildORMModelInstance(ORMModel, attributes), resault))
-        else
+        else:
             return cls.buildORMModelInstance(ORMModel, resault[0])
 
     @classmethod
@@ -152,7 +166,7 @@ class ResaultBuilder(object):
         return ormmodel(attributes=attributes)
 
 
-class ORMModel():
+class ORMModel(ActionDispatcher):
     """ Action Model """
 
     table_name = ""
