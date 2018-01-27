@@ -24,10 +24,7 @@ class WeiboSpider(scrapy.Spider):
         """ 发起请求 """
 
         for uid in self.blogger_ids:
-            yield Request(
-                url="https://weibo.com/u/%s" % uid,
-                callback=self.parse_bloggerinformation,
-            )
+            yield Request(url="https://weibo.com/u/%s" % uid, callback=self.parse_bloggerinformation,)
 
     def parse_bloggerinformation(self, response):
         """ 分析博主, 找到置顶帖 """
